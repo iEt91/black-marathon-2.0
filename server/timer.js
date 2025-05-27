@@ -1,6 +1,7 @@
 let endingTime = new Date(Date.now() + 60 * 60 * 1000); // 1h inicial
 let paused = false;
 let accumulatedSeconds = 0;
+let pauseStart = null;
 
 function addSeconds(sec) {
   if (paused) {
@@ -17,28 +18,38 @@ function setEndingTimeFromNow(h, m, s) {
   endingTime = new Date(Date.now() + totalMs);
   accumulatedSeconds = 0;
   paused = false;
+  pauseStart = null;
   console.log(`[Timer] Tiempo manual: ${endingTime.toISOString()}`);
 }
 
 function pauseTimer() {
   if (!paused) {
     paused = true;
+    pauseStart = new Date();
     console.log("[Timer] ⏸️ Pausado");
   }
 }
 
 function resumeTimer() {
   if (paused) {
-    endingTime = new Date(endingTime.getTime() + accumulatedSeconds * 1000);
-    console.log(`[Timer] ▶️ Reanudado con +${accumulatedSeconds}s`);
+    const now = new Date();
+    const pausedDuration = Math.floor((now - pauseStart) / 1000);
+    endingTime = new Date(endingTime.getTime() + pausedDuration * 1000 + accumulatedSeconds * 1000);
+    console.log(`[Timer] ▶️ Reanudado (+${pausedDuration}s de pausa +${accumulatedSeconds}s acumulado)`);
     accumulatedSeconds = 0;
     paused = false;
+    pauseStart = null;
   }
 }
 
 function getRemaining() {
   const now = new Date();
-  return Math.max(0, Math.floor((endingTime - now) / 1000));
+
+  if (paused && pauseStart) {
+    return Math.max(0, Math.floor((endingTime - pauseStart) / 1000));
+  } else {
+    return Math.max(0, Math.floor((endingTime - now) / 1000));
+  }
 }
 
 function getFormatted() {
@@ -50,6 +61,11 @@ function getFormatted() {
 }
 
 function getEndingTimeISO() {
+  const now = new Date();
+  if (paused && pauseStart) {
+    const diff = endingTime - pauseStart;
+    return new Date(now.getTime() + diff).toISOString(); // congelado
+  }
   return endingTime.toISOString();
 }
 
