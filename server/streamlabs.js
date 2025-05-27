@@ -7,20 +7,22 @@ const {
     resumeTimer
 } = require("./timer");
 
+require("dotenv").config();
+
 function initStreamlabs() {
     const token = process.env.STREAMLABS_TOKEN;
     if (!token) {
-        console.error("❌ STREAMLABS_TOKEN no definido en .env");
+        console.error("❌ STREAMLABS_TOKEN no definido");
         return;
     }
 
-    // Suscripciones, bits y donaciones de blackelespanolito
+    // Eventos monetarios desde blackelespanolito
     const streamlabsSocket = socketIo(`https://sockets.streamlabs.com?token=${token}`, {
         transports: ["websocket"],
     });
 
     streamlabsSocket.on("connect", () => {
-        console.log("✅ Conectado a Streamlabs para eventos de blackelespanolito");
+        console.log("✅ Conectado a Streamlabs");
     });
 
     streamlabsSocket.on("event", (event) => {
@@ -57,19 +59,29 @@ function initStreamlabs() {
                 break;
         }
 
-        console.log(`[Streamlabs] Evento de ${event.type} procesado`);
+        console.log(`[Streamlabs] Evento procesado: ${event.type}`);
     });
 
-    // Comandos de prueba desde el canal tangov91
+    // Comandos del canal tangov91
     const twitchClient = new tmi.Client({
+        identity: {
+            username: process.env.TWITCH_USERNAME,
+            password: process.env.TWITCH_ACCESS_TOKEN
+        },
         channels: ["tangov91"]
     });
 
     twitchClient.connect().catch(console.error);
 
+    twitchClient.on("connected", (addr, port) => {
+        console.log(`✅ Bot conectado a Twitch en ${addr}:${port}`);
+    });
+
     twitchClient.on("message", (channel, tags, message, self) => {
         if (self) return;
-        const isMod = tags.mod || tags.username === "blackelespanolito";
+
+        console.log(`[MSG] ${tags.username}: ${message}`);
+        const isMod = tags.mod || tags.username === "blackelespanolito" || tags.username === "tangov91";
         const parts = message.trim().split(" ");
 
         if (!isMod) return;
@@ -80,18 +92,18 @@ function initStreamlabs() {
             const s = parseInt(parts[3]);
             if (!isNaN(h) && !isNaN(m) && !isNaN(s)) {
                 setEndingTimeFromNow(h, m, s);
-                console.log(`[Twitch@${channel}] settime por ${tags.username}: ${h}h ${m}m ${s}s`);
+                console.log(`[Twitch] settime por ${tags.username}: ${h}h ${m}m ${s}s`);
             }
         }
 
         if (parts[0] === "!pause") {
             pauseTimer();
-            console.log(`[Twitch@${channel}] pause por ${tags.username}`);
+            console.log(`[Twitch] pause por ${tags.username}`);
         }
 
         if (parts[0] === "!resume") {
             resumeTimer();
-            console.log(`[Twitch@${channel}] resume por ${tags.username}`);
+            console.log(`[Twitch] resume por ${tags.username}`);
         }
     });
 }
